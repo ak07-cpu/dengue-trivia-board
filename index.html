@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Dengue Slayer Spin Game</title>
+
+<style>
+body{
+  font-family:Arial;
+  text-align:center;
+  background:linear-gradient(to right,#36d1dc,#5b86e5);
+  color:white;
+  padding:20px;
+}
+
+.card{
+  background:white;
+  color:black;
+  max-width:500px;
+  margin:auto;
+  padding:25px;
+  border-radius:20px;
+  box-shadow:0 4px 15px rgba(0,0,0,0.3);
+}
+
+#wheel{
+  width:180px;
+  height:180px;
+  border-radius:50%;
+  border:10px solid #333;
+  margin:20px auto;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:bold;
+  background:conic-gradient(#ff595e,#ffca3a,#8ac926,#1982c4,#6a4c93,#ff595e);
+  transition:transform 2s ease-out;
+}
+
+button{
+  padding:10px 15px;
+  margin:6px;
+  border:none;
+  border-radius:10px;
+  cursor:pointer;
+  font-size:15px;
+}
+
+.option{
+  display:block;
+  width:90%;
+  margin:8px auto;
+  background:#eeeeee;
+}
+
+.correct{color:green;font-weight:bold;}
+.wrong{color:red;font-weight:bold;}
+
+#taskBox{
+  background:#ffe6e6;
+  padding:15px;
+  border-radius:15px;
+  margin-top:15px;
+  display:none;
+}
+</style>
+</head>
+
+<body>
+
+<h1>🦟 Dengue Slayer Spin Game</h1>
+
+<div class="card">
+
+<h2 id="levelTitle"></h2>
+
+<div id="wheel">SPIN</div>
+
+<button onclick="spinQuestion()">🎡 Spin Question</button>
+
+<h3 id="question"></h3>
+<div id="options"></div>
+
+<p id="result"></p>
+
+<div id="taskBox">
+  <h3>Task Penalty</h3>
+  <p id="taskText"></p>
+  <button onclick="taskDone()">✅ Done</button>
+</div>
+
+</div>
+
+<script>
+const params = new URLSearchParams(window.location.search);
+const level = params.get("level") || "easy";
+
+document.getElementById("levelTitle").innerText =
+level.toUpperCase() + " LEVEL";
+
+let currentQuestion = null;
+let spinning = false;
+
+/* QUESTIONS */
+const questions = {
+easy:[
+{q:"What disease is spread by Aedes mosquitoes?",o:["Malaria","Dengue Fever","Flu","COVID-19"],a:1},
+{q:"What mosquito spreads dengue?",o:["Culex","Anopheles","Aedes aegypti","Housefly"],a:2},
+{q:"When do Aedes mosquitoes bite?",o:["Night","Day","Midnight only","Rain only"],a:1},
+{q:"Where do they lay eggs?",o:["Dirty drains","Clean stagnant water","Soil","Air"],a:1},
+{q:"Life cycle duration?",o:["1 day","3 days","7–10 days","1 month"],a:2},
+{q:"Aedes breed in dirty water.",o:["True","False"],a:1},
+{q:"Common symptom?",o:["Fever","Hair loss","Toothache","Sneezing"],a:0},
+{q:"Which mosquito bites?",o:["Male","Female"],a:1}
+],
+
+medium:[
+{q:"Breeding place?",o:["Flower pot","Pillow","Book","Shoe"],a:0},
+{q:"Gas that attracts mosquitoes?",o:["Oxygen","Nitrogen","Carbon dioxide (CO₂)","Hydrogen"],a:2},
+{q:"Why weekly cleaning?",o:["Saves water","Stops life cycle","For fun","No reason"],a:1},
+{q:"If untreated?",o:["Nothing","Gets stronger","Can be fatal","Sleepy"],a:2},
+{q:"High-risk season?",o:["Dry","Rainy","Winter","Snow"],a:1},
+{q:"Prevention method?",o:["Eat candy","Repellent","Sleep late","Ignore"],a:1},
+{q:"Aedes appearance?",o:["Plain brown","Black with white stripes","Green","Transparent"],a:1},
+{q:"Bottle cap water enough?",o:["Yes","No"],a:0}
+],
+
+hard:[
+{q:"Why clean water?",o:["More predators","Safer for larvae","Hotter","Brighter"],a:1},
+{q:"Why hard to control?",o:["Slow breeding","Fast breeding & hidden spots","Big size","Weak"],a:1},
+{q:"Bottle trap works by?",o:["Heat","CO₂ attraction","Sound","Light"],a:1},
+{q:"Why daytime biting?",o:["Body clock","Cold","Dark","Noise"],a:0},
+{q:"Why community needed?",o:["One person enough","Everyone affected","No reason","For fun"],a:1},
+{q:"If ignored?",o:["No change","More cases","Less mosquitoes","Safer"],a:1},
+{q:"Urban risk?",o:["Less water","More containers","Cold weather","Fewer people"],a:1},
+{q:"Fogging not long-term?",o:["Kills all forever","Temporary only","Free","Strong"],a:1}
+],
+
+extreme:[
+{q:"Why is dengue mainly a human–mosquito–human cycle?",o:["Animals spread it faster","Virus only multiplies well in humans","Mosquitoes don’t bite animals","Humans don’t get infected"],a:1},
+{q:"Why can Aedes survive better in urban areas?",o:["Less food","More natural predators","More artificial containers with water","Cooler weather"],a:2},
+{q:"Main limitation of fogging?",o:["Too expensive","Kills only adult mosquitoes temporarily","Attracts more mosquitoes","Doesn’t produce smoke"],a:1},
+{q:"Why eliminate larvae?",o:["Larvae are bigger","Stops mosquitoes before they reproduce","Larvae fly faster","Adults are harmless"],a:1},
+{q:"How does CO₂ help mosquitoes find humans?",o:["Changes color","Signal of breathing organisms","Makes noise","Produces heat"],a:1},
+{q:"Why community cooperation is essential?",o:["Mosquitoes stay in one house","One house cleaning enough","Mosquitoes travel between houses","Dengue is not serious"],a:2},
+{q:"Why do Aedes eggs survive dry conditions?",o:["They die immediately","They are waterproof and hatch later","They fly away","They turn into adults instantly"],a:1},
+{q:"Biggest challenge in behaviour change?",o:["Lack of water","People forget or are not consistent","Mosquitoes are too big","Weather is cold"],a:1}
+]
+};
+
+/* TASKS */
+const tasks = [
+"Act like you are killing a mosquito",
+"Name 2 symptoms of Dengue Fever",
+"Show how to apply mosquito repellent",
+"Pretend to empty a water container",
+"Say a dengue slogan loudly",
+"List 2 places Aedes can breed",
+"Point at 2 places that can collect water",
+"Answer: when do Aedes mosquitoes bite?",
+"Demonstrate covering a container",
+"Spell DENGUE correctly",
+"Clap 5 times and say: No water, no Aedes!",
+"Name the mosquito: Aedes aegypti",
+"Explain why weekly cleaning matters",
+"Show how to protect yourself",
+"Do a mini awareness speech",
+"Act like a mosquito for 5 seconds",
+"Buzz like a mosquito loudly",
+"Stand still like stagnant water for 5 seconds"
+];
+
+function spinQuestion(){
+  if(spinning) return;
+  spinning = true;
+
+  document.getElementById("result").innerText = "";
+  document.getElementById("taskBox").style.display = "none";
+  document.getElementById("question").innerText = "";
+  document.getElementById("options").innerHTML = "";
+
+  const wheel = document.getElementById("wheel");
+  const rotate = 720 + Math.floor(Math.random() * 720);
+  wheel.style.transform = "rotate(" + rotate + "deg)";
+
+  setTimeout(()=>{
+    const list = questions[level];
+    currentQuestion = list[Math.floor(Math.random() * list.length)];
+
+    document.getElementById("question").innerText = currentQuestion.q;
+
+    currentQuestion.o.forEach((option,index)=>{
+      const btn = document.createElement("button");
+      btn.className = "option";
+      btn.innerText = option;
+      btn.onclick = ()=>checkAnswer(index);
+      document.getElementById("options").appendChild(btn);
+    });
+
+    spinning = false;
+  },2000);
+}
+
+function checkAnswer(choice){
+  const buttons = document.querySelectorAll(".option");
+  buttons.forEach(btn=>{
+    btn.disabled = true;
+    btn.style.opacity = "0.5";
+  });
+
+  if(choice === currentQuestion.a){
+    document.getElementById("result").innerHTML =
+    "<span class='correct'>✅ Correct! You pass.</span>";
+  }else{
+    document.getElementById("result").innerHTML =
+    "<span class='wrong'>❌ Wrong! Spin task penalty.</span>";
+
+    spinTask();
+  }
+}
+
+function spinTask(){
+  const task = tasks[Math.floor(Math.random() * tasks.length)];
+
+  setTimeout(()=>{
+    document.getElementById("taskText").innerText = task;
+    document.getElementById("taskBox").style.display = "block";
+  },500);
+}
+
+function taskDone(){
+  document.getElementById("taskBox").style.display = "none";
+  document.getElementById("result").innerHTML =
+  "<span class='correct'>✅ Task completed. You may continue.</span>";
+}
+</script>
+
+</body>
+</html>
